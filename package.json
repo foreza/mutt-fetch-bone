@@ -1,0 +1,27 @@
+{
+  "name": "mutt-fetch-bone",
+  "version": "1.0.0",
+  "description": "Get me my template!",
+  "main": "fetch.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/foreza/mutt-fetch-bone.git"
+  },
+  "keywords": [
+    "bone"
+  ],
+  "author": "foreza",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/foreza/mutt-fetch-bone/issues"
+  },
+  "homepage": "https://github.com/foreza/mutt-fetch-bone#readme",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "fs": "0.0.1-security",
+    "qs": "^6.10.1"
+  }
+}
