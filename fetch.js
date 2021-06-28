@@ -1,18 +1,13 @@
+const axios = require('axios');                           // To quickly make network requests.
+const qs = require('qs');                                 // For manipulating stuff for axios request body
+const fs = require('fs');                                 // For file writing
 
-var axios = require('axios');           // To quickly make network requests.
-var qs = require('qs');                 // For manipulating stuff for axios request body
-var fs = require('fs');                 // For file writing
+const LOGTAG = "[FETCH BONE TOOL]: ";                     // Logging constant
+const removeTargetStart = '<?xml';                        // The start delim of the VAST in the mutt response
+const removeTargetEnd = "VAST>";                          // The end delim of the VAST in the mutt response
+const templateDelim = "$REPLACE_VAST_TARGET";             // Macro. Change this to fit whatever is used by adops tool.
 
-
-const LOGTAG = "[FETCH BONE TOOL]: ";      // Logging constant
-
-const removeTargetStart = '<?xml';                // The start delim of the VAST in the mutt response
-const removeTargetEnd = "VAST>";                  // The end delim of the VAST in the mutt response
-const templateDelim = "[replace_target]";         // Macro. Change this to fit whatever is used by adops tool.
-
-var myArgs = process.argv.slice(2);
-var command = myArgs[0];
-
+const myArgs = process.argv.slice(2);
 
 // Utility for logging messages
 var logger = (msg) => {
@@ -20,7 +15,9 @@ var logger = (msg) => {
 }
 
 
-// Do a simple fetch for the provided URI
+// Function that will fetch content at the provided URI
+// Requires the URI
+// Returns a promise (must await this)
 var getVastXMLFromURI = async function (uri) {
     return axios.get(uri).then((response) => {
         return response.data;
@@ -31,6 +28,8 @@ var getVastXMLFromURI = async function (uri) {
 
 
 // Function to call Mutt with axios
+// Requires the start/end of the payload (usually the leading tags of a VAST), the intended replacement, and a file name
+// Returns a boolean indicating whether there were errors with the remote fetch
 var getMuttResponseForVideo41 = (targetStart, targetEnd, replacement, outputName) => {
 
     /* Mutt request params for axios */
@@ -97,9 +96,11 @@ var getMuttResponseForVideo41 = (targetStart, targetEnd, replacement, outputName
 
     }).catch((error) => {
         console.log(error);
+        return false;
     });
 
 }
+
 
 // Replaces the provided ad payload with the macro given a start/end delim
 // Returns the modified payload.
@@ -116,26 +117,61 @@ var replaceAdPayloadWithContent = (start, end, payload, content) => {
     return retPayload;
 }
 
+// Given an XML body, strip whitespace and line breaks, then escape it
+// Returns the modified xml to be placed in the Mutt response
+var prepareXMLPayloadForInsertion = (xml) => {
 
-// Function that will write this file
+    // Remove all line breaks
+    /*
+        - Thanks, https://www.textfixer.com/tutorials/javascript-line-breaks.php
+        - Removes 3 types of line breaks. new line, carriage return, carriage return with new line
+        - Applies to all lines (/m) globally (/g)
+    */
+    var regex = new RegExp(/(\r\n|\n|\r)/gm);
+    xml = xml.replace(regex, "");
+
+    // Clean up any cases where we have more than one space and make it just one space.
+    // regex = new RegExp(/(\s\s+)/gm);
+    // xml = xml.replace(regex, " ").trim();
+
+    // Double escape, and then trim off the leading quotes
+    xml = JSON.stringify(xml);
+    xml = xml.substring(1, xml.length - 1);
+
+    // Log the sample to the console so we can examine it
+    logger("Sample start: " + xml.substring(0, 200));
+    logger("Sample end: " + xml.substring(xml.length - 200));
+    return xml;
+}
+
+
+// Given a file name and the contents of that file, write it to output
+// Returns a status message indicating whether the write succeeded
 var writeFileJsonResponse = (name, contents) => {
-    fs.writeFile(name, contents, function (err) {
-        if (err) return console.log(err);
-        console.log(`Wrote mutt template to: ${name}`);
+    fs.writeFile("./output/" + name, contents, function (err) {
+        if (err) {
+            return console.log(err);
+        }
+        return console.log(`Wrote mutt template to: ${name}`);
     });
 
 }
 
+// Given the file name with the extension, append the current time/date
+// Accepts the name and the extension (can be anything presently)
+// Returns a uniquified filename
 var makeFileNameWithTimeStamp = (name, ext) => {
     return `${Date.now()}-${name}.${ext}`;
 }
 
-var entryPoint = async function(command) {
+// Application entry point
+// Provide an array of commands e.g ["adops", "blah"]
+var entryPoint = async function (commandArr) {
 
-    switch (command) {
+    switch (commandArr[0]) {
         case 'adops':
             logger("Fetching adops template.");
-    
+
             // Invoke function for simple replacement. 
             getMuttResponseForVideo41(
                 removeTargetStart,
@@ -144,27 +180,30 @@ var entryPoint = async function(command) {
                 "adops");
             break;
         case 'replaceFromURI':
-            logger("Replacing mutt response with provided XML from URI");
-    
-            // TODO: why you hard code this?
-            
-            var xml = await getVastXMLFromURI("https://jasonthechiu.com/SESUPPLY-TESTADS/ias-test-dog-vast");
-            
-            // TODO: remove white space and double escape dat.
 
+            // We need the target URI as the next param
+            if (!commandArr[1]) {
+                console.error("No argument provided here - please provide the URI to request")
+                break;
+            }
+
+            var targetURI = commandArr[1];
+            logger("Replacing mutt response with provided XML from URI: " + targetURI);
+
+            var xml = await getVastXMLFromURI(targetURI);
+
+            xml = prepareXMLPayloadForInsertion(xml);
             getMuttResponseForVideo41(
                 removeTargetStart,
                 removeTargetEnd,
                 xml,
-                "test");
-    
+                "replaced");
+
             break;
         default:
-            logger("Not supported command. Read the doc.");
+            logger("Not supported commandArr. Read the doc.");
     }
 
 }
 
-entryPoint(command);
-
-
+entryPoint(myArgs);
