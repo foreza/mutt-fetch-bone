@@ -1,6 +1,15 @@
 const axios = require('axios');                           // To quickly make network requests.
 const qs = require('qs');                                 // For manipulating stuff for axios request body
 const fs = require('fs');                                 // For file writing
+const chalk = require("chalk");                         
+const boxen = require("boxen");
+const boxenOptions = {
+ padding: 1,
+ margin: 1,
+ borderStyle: "round",
+ borderColor: "green",
+ backgroundColor: "#555555"
+};
 
 const LOGTAG = "[FETCH BONE TOOL]: ";                     // Logging constant
 const removeTargetStart = '<?xml';                        // The start delim of the VAST in the mutt response
@@ -9,9 +18,11 @@ const templateDelim = "$REPLACE_VAST_TARGET";             // Macro. Change this 
 
 const myArgs = process.argv.slice(2);
 
-// Utility for logging messages
+// Utility for logging pretty messages
 var logger = (msg) => {
-    console.log(LOGTAG + msg);
+    const greeting = chalk.white.bold(LOGTAG + msg);
+    const msgBox = boxen( greeting, boxenOptions );
+    console.log(msgBox);
 }
 
 
@@ -152,7 +163,8 @@ var writeFileJsonResponse = (name, contents) => {
         if (err) {
             return console.log(err);
         }
-        return console.log(`Wrote mutt template to: ${name}`);
+        
+        return logger(`Wrote mutt template to: ${name}`);
     });
 
 }
