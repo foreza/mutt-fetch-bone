@@ -1,10 +1,10 @@
 {
   "name": "mutt-fetch-bone",
   "version": "1.0.0",
-  "description": "Get me my template!",
-  "main": "fetch.js",
+  "description": "",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "func start",
+    "test": "echo \"No tests yet...\""
   },
   "repository": {
     "type": "git",
@@ -25,5 +25,6 @@
     "chalk": "^2.4.2",
     "fs": "0.0.1-security",
     "qs": "^6.10.1"
-  }
+  },
+  "devDependencies": {}
 }

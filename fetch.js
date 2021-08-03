@@ -1,34 +1,14 @@
 const axios = require('axios');                           // To quickly make network requests.
 const qs = require('qs');                                 // For manipulating stuff for axios request body
-const fs = require('fs');                                 // For file writing
-const chalk = require("chalk");                         
-const boxen = require("boxen");
-const boxenOptions = {
- padding: 1,
- margin: 1,
- borderStyle: "round",
- borderColor: "green",
- backgroundColor: "#555555"
-};
 
-const LOGTAG = "[FETCH BONE TOOL]: ";                     // Logging constant
+/* Ad payload params */
 const removeTargetStart = '<?xml';                        // The start delim of the VAST in the mutt response
 const removeTargetEnd = "VAST>";                          // The end delim of the VAST in the mutt response
 const templateDelim = "$REPLACE_VAST_TARGET";             // Macro. Change this to fit whatever is used by adops tool.
 
-const myArgs = process.argv.slice(2);
-
-// Utility for logging pretty messages
-var logger = (msg) => {
-    const greeting = chalk.white.bold(LOGTAG + msg);
-    const msgBox = boxen( greeting, boxenOptions );
-    console.log(msgBox);
-}
-
 
 // Function that will fetch content at the provided URI
 // Requires the URI
-// Returns a promise (must await this)
 var getVastXMLFromURI = async function (uri) {
     return axios.get(uri).then((response) => {
         return response.data;
@@ -38,15 +18,16 @@ var getVastXMLFromURI = async function (uri) {
 };
 
 
+
 // Function to call Mutt with axios
 // Requires the start/end of the payload (usually the leading tags of a VAST), the intended replacement, and a file name
 // Returns a boolean indicating whether there were errors with the remote fetch
-var getMuttResponseForVideo41 = (targetStart, targetEnd, replacement, outputName) => {
+var getMuttResponseForVideo41 = async (targetStart, targetEnd, replacement, outputName) => {
 
     /* Mutt request params for axios */
 
     // Body for Mutt Request
-    // TODO: Read in these params ideally from a file.
+    // TODO: Read in mutt-payload.js
     var muttBodyData = qs.stringify({
         'u-s-id': '534A45969C9E4FCD99155EECDFACE75E',
         'u-appbid': 'BadBoyBob',
@@ -78,6 +59,7 @@ var getMuttResponseForVideo41 = (targetStart, targetEnd, replacement, outputName
     });
 
     // Config for Mutt Request
+    // TODO: read this in
     var muttReqConfig = {
         method: 'post',
         url: 'https://ads.inmobi.com/sdk',
@@ -89,7 +71,8 @@ var getMuttResponseForVideo41 = (targetStart, targetEnd, replacement, outputName
         data: muttBodyData
     };
 
-    axios(muttReqConfig).then((response) => {
+
+    var res = await axios(muttReqConfig).then((response) => {
 
         var adResponse = response.data;
 
@@ -100,16 +83,14 @@ var getMuttResponseForVideo41 = (targetStart, targetEnd, replacement, outputName
         adResponse.adSets[0].ads[0].pubContent = replaceAdPayloadWithContent(
             targetStart, targetEnd, adPubContentString, replacement);
 
-        // Write this to file.
-        writeFileJsonResponse(
-            makeFileNameWithTimeStamp(outputName, "json"),
-            JSON.stringify(adResponse));
+        return adResponse;
 
     }).catch((error) => {
         console.log(error);
         return false;
     });
 
+    return res;
 }
 
 
@@ -150,72 +131,49 @@ var prepareXMLPayloadForInsertion = (xml) => {
     xml = xml.substring(1, xml.length - 1);
 
     // Log the sample to the console so we can examine it
-    logger("Sample start: " + xml.substring(0, 200));
-    logger("Sample end: " + xml.substring(xml.length - 200));
+    // logger("Sample start: " + xml.substring(0, 200));
+    // logger("Sample end: " + xml.substring(xml.length - 200));
+
     return xml;
 }
 
 
-// Given a file name and the contents of that file, write it to output
-// Returns a status message indicating whether the write succeeded
-var writeFileJsonResponse = (name, contents) => {
-    fs.writeFile("./output/" + name, contents, function (err) {
-        if (err) {
-            return console.log(err);
-        }
-        
-        return logger(`Wrote mutt template to: ${name}`);
-    });
+
+const requestAdOpsTemplate = async () =>  {
+    
+     // Invoke function for simple replacement. 
+     var adopsTemplate = await getMuttResponseForVideo41(
+        removeTargetStart,
+        removeTargetEnd,
+        templateDelim,
+        "adops");
+
+    console.log("aww, yeah!");
+    return adopsTemplate;
 
 }
 
-// Given the file name with the extension, append the current time/date
-// Accepts the name and the extension (can be anything presently)
-// Returns a uniquified filename
-var makeFileNameWithTimeStamp = (name, ext) => {
-    return `${Date.now()}-${name}.${ext}`;
-}
 
-// Application entry point
-// Provide an array of commands e.g ["adops", "blah"]
-var entryPoint = async function (commandArr) {
 
-    switch (commandArr[0]) {
-        case 'adops':
-            logger("Fetching adops template.");
+const requestMuttTemplateForURI = async (targetURI) => {
 
-            // Invoke function for simple replacement. 
-            getMuttResponseForVideo41(
-                removeTargetStart,
-                removeTargetEnd,
-                templateDelim,
-                "adops");
-            break;
-        case 'replaceFromURI':
+    var xml = await getVastXMLFromURI(targetURI);
+    xml = prepareXMLPayloadForInsertion(xml);
 
-            // We need the target URI as the next param
-            if (!commandArr[1]) {
-                console.error("No argument provided here - please provide the URI to request")
-                break;
-            }
+    var muttReplacedTemplate = getMuttResponseForVideo41(
+        removeTargetStart,
+        removeTargetEnd,
+        xml,
+        "replaced");
 
-            var targetURI = commandArr[1];
-            logger("Replacing mutt response with provided XML from URI: " + targetURI);
-
-            var xml = await getVastXMLFromURI(targetURI);
-
-            xml = prepareXMLPayloadForInsertion(xml);
-            getMuttResponseForVideo41(
-                removeTargetStart,
-                removeTargetEnd,
-                xml,
-                "replaced");
-
-            break;
-        default:
-            logger("Not supported commandArr. Read the doc.");
-    }
+    return muttReplacedTemplate;
 
 }
 
-entryPoint(myArgs);
+
+
+module.exports = {
+    adopsTool: requestAdOpsTemplate,
+    replaceFromURI: requestMuttTemplateForURI
+}
+

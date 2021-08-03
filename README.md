@@ -1,9 +1,19 @@
 # mutt-fetch-bone
+
 Tool that hits InMobi's services to pull down an ad response for debugging/tooling purposes.
+This project integrates with VSCode/AZ Functions - you're free to use it if you like.
 
 ## Prerequisites: 
 - Node.js v14.11.0 (or later)
+- Visual Studio Code (on a supported platfor,m)
+- VSCode Azure Functions plugin: https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurefunctions
+- Azure account with an active subscription
 - A working internet connection (hah!)
+
+## Mandatory Reading if you don't know AZ functions:
+- https://docs.microsoft.com/en-us/azure/developer/javascript/how-to/develop-serverless-apps
+- https://docs.microsoft.com/en-us/azure/azure-functions/create-first-function-vs-code-node
+- https://docs.microsoft.com/en-us/azure/azure-functions/functions-develop-vs-code?tabs=csharp 
 
 ## Installation
 
@@ -18,9 +28,18 @@ cd mutt-fetch-bone/
 
 ### Step 2: 
 
-Run `npm i` to install all dependencies.
+Run `npm i` to install all dependencies (locally).
+Azure will install these dependencies.
 
-You're all set. 
+### Step 3:
+
+Do your thing and test locally.
+The project is set up already with the folder hiearchy expected by AZ Functions.
+Follow their guide to sign in to Azure if you haven't already.
+
+### Step 4:
+
+Once your function is uploaded, go wild.
 
 
 ## Usage
@@ -30,11 +49,15 @@ You're all set.
 
 | Command        | Description                                                 | Params             | Example Usage                                                                   |
 |----------------|-------------------------------------------------------------|--------------------|---------------------------------------------------------------------------------|
-| `adops`          | Generates a macro template for the adops tool               | N/A                | `node fetch adops`                                                                |
-| `replaceFromURI` | Generates a rewritable/local mappable template for testing. | URI of target VAST | `node replaceFromURI https://jasonthechiu.com/SESUPPLY-TESTADS/ias-test-dog-vast` |
+| `GenerateAdOpsTemplate`          | Generates a macro template for the adops tool, with $REPLACE_VAST_TARGET for your VAST               | N/A                | `http://localhost:7071/api/GenerateAdOpsTemplate`                                                                |
+| `GenerateMuttResponseFromVastTag` | Generates a rewritable/local mappable template for testing provided a URI | URI of target VAST | `http://localhost:7071/api/GenerateMuttResponseFromVastTag?uri=https://jasonthechiu.com/SESUPPLY-TESTADS/ias-test-dog-vast` |
 
 ### Output:
 
-All files will be output into the `output` directory.
+A JSON response. Save it and use it to local map.
+
 
 ## TODO:
+- Remove all the UI stuff after I've saved it elsewhere.
+- Cleanup
+- Make it accessible provided you have a provide api_key that I grant
